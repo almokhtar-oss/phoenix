@@ -316,6 +316,7 @@ function QueuedStat({
   projectQueuedCount: number;
 }) {
   const retryingCount = sum(queues.map((queue) => queue.retryingCount));
+  const fullQueues = queues.filter((queue) => queue.atCapacity);
   return (
     <Stat label="Queued">
       <HoverDetail
@@ -339,9 +340,9 @@ function QueuedStat({
         <Flex direction="row" gap="size-100" alignItems="center">
           <StatValue
             color={
-              queues.some((queue) => queue.status === "OVERLOADED")
+              fullQueues.some((queue) => queue.status === "OVERLOADED")
                 ? "danger"
-                : queues.some((queue) => queue.atCapacity)
+                : fullQueues.length > 0
                   ? "warning"
                   : null
             }
@@ -353,11 +354,11 @@ function QueuedStat({
               <span
                 key={queue.evaluationTarget}
                 css={
-                  queue.status === "OVERLOADED"
-                    ? overloadedMeterCSS
-                    : queue.atCapacity
-                      ? fullMeterCSS
-                      : undefined
+                  queue.atCapacity
+                    ? queue.status === "OVERLOADED"
+                      ? overloadedMeterCSS
+                      : fullMeterCSS
+                    : undefined
                 }
               >
                 <ProgressBar
