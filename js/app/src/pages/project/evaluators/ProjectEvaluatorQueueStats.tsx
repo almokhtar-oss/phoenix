@@ -77,18 +77,14 @@ const QUEUE_STATUS_BADGE: Record<
 > = {
   HEALTHY: { label: "Healthy", variant: "success" },
   DEGRADED: { label: "Degraded", variant: "warning" },
+  OVERLOADED: { label: "Overloaded", variant: "danger" },
 };
 
 /** How serious each status is, so the strip shows the worst queue's. */
 const QUEUE_STATUS_SEVERITY: Record<EvaluationQueueStatus, number> = {
   HEALTHY: 0,
   DEGRADED: 1,
-};
-
-const RECORD_NOUN_BY_TARGET: Record<string, string> = {
-  SPAN: "spans",
-  TRACE: "traces",
-  SESSION: "sessions",
+  OVERLOADED: 2,
 };
 
 function getQueueStatusDetail(queue: EvaluationQueue): string | null {
@@ -96,9 +92,11 @@ function getQueueStatusDetail(queue: EvaluationQueue): string | null {
     case "HEALTHY":
       return null;
     case "DEGRADED":
-      return queue.atCapacity
-        ? `Queue is full; new ${RECORD_NOUN_BY_TARGET[queue.evaluationTarget] ?? "records"} wait to be queued`
-        : "Evaluations are waiting more than 10 minutes";
+      return "Evaluations are waiting more than 10 minutes";
+    case "OVERLOADED":
+      return queue.overflowedCount === 1
+        ? "Dropped 1 evaluation in the last 10 minutes"
+        : `Dropped ${intFormatter(queue.overflowedCount)} evaluations in the last 10 minutes`;
     default:
       return assertUnreachable(queue.status);
   }
@@ -183,6 +181,7 @@ function ProjectEvaluatorQueueStatsContent({
           atCapacity
           queuedCount
           queuedLimit
+          overflowedCount
           retryingCount
           oldestQueuedAt
           queuedPerMinute
@@ -411,10 +410,7 @@ function QueueWaitStat({ queues }: { queues: ReadonlyArray<EvaluationQueue> }) {
         : oldest,
     null
   );
-  // A full queue is Degraded too, but that shows on the queued count instead.
-  const isWaitingTooLong = queues.some(
-    (queue) => queue.status === "DEGRADED" && !queue.atCapacity
-  );
+  const isWaitingTooLong = queues.some((queue) => queue.status === "DEGRADED");
   return (
     <Stat label="Waiting">
       <HoverDetail
