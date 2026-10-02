@@ -107,6 +107,11 @@ const fullMeterCSS = css`
   --mod-barloader-fill-color: var(--global-color-warning);
 `;
 
+/** Fills the meter in the danger color, matching the Overloaded badge. */
+const overloadedMeterCSS = css`
+  --mod-barloader-fill-color: var(--global-color-danger);
+`;
+
 /** A per-minute rate as a whole number per hour. */
 function formatPerHour(perMinute: number): string {
   return intFormatter(Math.round(perMinute * 60));
@@ -333,7 +338,13 @@ function QueuedStat({
       >
         <Flex direction="row" gap="size-100" alignItems="center">
           <StatValue
-            color={queues.some((queue) => queue.atCapacity) ? "warning" : null}
+            color={
+              queues.some((queue) => queue.status === "OVERLOADED")
+                ? "danger"
+                : queues.some((queue) => queue.atCapacity)
+                  ? "warning"
+                  : null
+            }
           >
             {intFormatter(sum(queues.map((queue) => queue.queuedCount)))}
           </StatValue>
@@ -341,7 +352,13 @@ function QueuedStat({
             {queues.map((queue) => (
               <span
                 key={queue.evaluationTarget}
-                css={queue.atCapacity ? fullMeterCSS : undefined}
+                css={
+                  queue.status === "OVERLOADED"
+                    ? overloadedMeterCSS
+                    : queue.atCapacity
+                      ? fullMeterCSS
+                      : undefined
+                }
               >
                 <ProgressBar
                   width="80px"
@@ -450,7 +467,7 @@ function StatValue({
   color = null,
   children,
 }: {
-  color?: "warning" | null;
+  color?: "warning" | "danger" | null;
   children: ReactNode;
 }) {
   return (
